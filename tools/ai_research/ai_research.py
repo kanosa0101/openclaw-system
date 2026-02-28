@@ -1,144 +1,187 @@
 #!/usr/bin/env python3
 """
 Multi-Source AI Research Tool
-Fetches GitHub Trending + arXiv papers and generates daily briefings.
+Daily briefing generator: GitHub Trending + arXiv papers.
 
 Usage:
-    python3 ai_research.py [--keywords "LLM agent,agentic"] [--output /path/to/report.md]
+    python3 ai_research.py
+    python3 ai_research.py --keywords "MCP agent tool-use" --since weekly --output report.md
 """
 
 import argparse
 import urllib.request
 import urllib.parse
-import json
 import re
+import html
 from datetime import datetime, timezone
 from pathlib import Path
-import html
 
 
-def fetch_url(url, accept=None):
-    headers = {"User-Agent": "Mozilla/5.0 (AI Research Tool)"}
+# ─────────────────────────────────────────────
+# Fetchers
+# ─────────────────────────────────────────────
+
+def fetch(url, accept=None):
+    headers = {"User-Agent": "ai-research-tool/1.0 (github.com/kanosa0101/openclaw-system)"}
     if accept:
         headers["Accept"] = accept
     req = urllib.request.Request(url, headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            return resp.read().decode(errors="replace")
-    except Exception as e:
-        return f"ERROR: {e}"
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=15) as r:
+                return r.read().decode(errors="replace")
+        except Exception as e:
+            if attempt == 2:
+                return ""
+    return ""
 
 
-def parse_github_trending(since="daily"):
-    """Scrape GitHub Trending page."""
-    url = f"https://github.com/trending?since={since}"
-    raw = fetch_url(url)
-    repos = []
-    # Extract repo names and descriptions
-    for m in re.finditer(r'href="/([^/]+/[^/"]+)"[^>]*>\s*\n.*?(<h2|<p)', raw, re.S):
-        full = m.group(1)
-        if full.count("/") == 1 and not full.startswith("trending"):
-            repos.append(full)
-    # Extract star counts
-    stars = re.findall(r'([\d,]+)\s*stars? today', raw)
+def github_trending(since="daily", language=""):
+    """Return list of {repo, url, description, stars_today}."""
+    url = f"https://github.com/trending{('/' + language) if language else ''}?since={since}"
+    raw = fetch(url)
     results = []
+    # repo slugs
+    slugs = re.findall(r'href="/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)"', raw)
     seen = set()
-    for i, repo in enumerate(repos[:20]):
-        if repo in seen:
-            continue
-        seen.add(repo)
-        star = stars[len(results)] if len(results) < len(stars) else "?"
-        results.append({"repo": repo, "stars_today": star, "url": f"https://github.com/{repo}"})
-        if len(results) >= 10:
-            break
+    clean = []
+    for s in slugs:
+        if s not in seen and "/" in s and not any(x in s for x in ["trending", "login", "signup", "explore"]):
+            seen.add(s)
+            clean.append(s)
+
+    stars = re.findall(r'([\d,]+)\s+stars? today', raw)
+    descs = re.findall(r'<p class="col-9[^"]*">\s*(.*?)\s*</p>', raw, re.S)
+
+    for i, slug in enumerate(clean[:15]):
+        results.append({
+            "repo": slug,
+            "url": f"https://github.com/{slug}",
+            "description": html.unescape(descs[i].strip()) if i < len(descs) else "",
+            "stars_today": stars[i].replace(",", "") if i < len(stars) else "?",
+        })
     return results
 
 
-def parse_arxiv(keywords, max_results=10):
-    """Fetch arXiv papers by keyword."""
-    query = urllib.parse.quote(keywords)
-    url = f"https://export.arxiv.org/api/query?search_query=all:{query}&sortBy=submittedDate&sortOrder=descending&max_results={max_results}"
-    raw = fetch_url(url)
+def arxiv_papers(query, max_results=10):
+    """Return list of {title, url, published, summary, authors}."""
+    q = urllib.parse.quote(query)
+    url = (f"https://export.arxiv.org/api/query?"
+           f"search_query=all:{q}&sortBy=submittedDate&sortOrder=descending&max_results={max_results}")
+    raw = fetch(url)
     papers = []
-    entries = re.findall(r'<entry>(.*?)</entry>', raw, re.S)
-    for entry in entries:
-        title = re.search(r'<title>(.*?)</title>', entry, re.S)
-        summary = re.search(r'<summary>(.*?)</summary>', entry, re.S)
-        link = re.search(r'<id>(.*?)</id>', entry)
-        published = re.search(r'<published>(.*?)</published>', entry)
-        if title and link:
+    for entry in re.findall(r"<entry>(.*?)</entry>", raw, re.S):
+        def tag(t):
+            m = re.search(rf"<{t}[^>]*>(.*?)</{t}>", entry, re.S)
+            return html.unescape(m.group(1).strip()) if m else ""
+
+        title = tag("title").replace("\n", " ")
+        summary = tag("summary").replace("\n", " ")[:350]
+        published = tag("published")[:10]
+        link_m = re.search(r"<id>(http[s]?://arxiv\.org/abs/[^<]+)</id>", entry)
+        url_paper = link_m.group(1).strip() if link_m else ""
+        authors = re.findall(r"<name>(.*?)</name>", entry)
+
+        if title and url_paper:
             papers.append({
-                "title": html.unescape(title.group(1).strip().replace("\n", " ")),
-                "summary": html.unescape(summary.group(1).strip()[:300].replace("\n", " ")) if summary else "",
-                "url": link.group(1).strip(),
-                "published": published.group(1)[:10] if published else "?",
+                "title": title,
+                "url": url_paper,
+                "published": published,
+                "summary": summary,
+                "authors": authors[:3],
             })
     return papers
 
 
-def generate_report(github_repos, arxiv_papers, keywords, output_path):
+# ─────────────────────────────────────────────
+# Report generator
+# ─────────────────────────────────────────────
+
+def generate(repos, papers, keywords, since, top_n=5):
     date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    since_label = {"daily": "今日", "weekly": "本周", "monthly": "本月"}.get(since, since)
 
     lines = [
         f"# 每日 AI 调研简报 — {date}",
         "",
-        f"**生成时间：** {now}  ",
-        f"**关键词：** {keywords}  ",
-        f"**数据来源：** GitHub Trending + arXiv",
+        f"> 生成时间：{now} | 关键词：`{keywords}` | 数据来源：GitHub Trending · arXiv",
         "",
         "---",
         "",
-        "## 🔥 GitHub 今日热门",
+        f"## 🔥 GitHub {since_label}热门（Top {min(top_n, len(repos))}）",
         "",
-        "| 项目 | 今日 Stars |",
-        "|------|-----------|",
     ]
-    for r in github_repos[:10]:
-        lines.append(f"| [{r['repo']}]({r['url']}) | ⭐ {r['stars_today']} |")
+
+    for r in repos[:top_n]:
+        stars = f"⭐ +{r['stars_today']}" if r["stars_today"] != "?" else ""
+        desc = f" — {r['description']}" if r["description"] else ""
+        lines.append(f"- **[{r['repo']}]({r['url']})** {stars}{desc}")
 
     lines += [
         "",
-        "## 📚 arXiv 最新论文",
+        f"## 📚 arXiv 最新论文（Top {min(top_n, len(papers))}）",
         "",
     ]
-    for p in arxiv_papers[:10]:
+
+    for p in papers[:top_n]:
+        authors = ", ".join(p["authors"]) + (" et al." if len(p["authors"]) >= 3 else "")
         lines.append(f"### [{p['title']}]({p['url']})")
-        lines.append(f"*发布：{p['published']}*")
+        lines.append(f"*{p['published']} · {authors}*")
+        lines.append("")
         lines.append(f"{p['summary']}...")
         lines.append("")
 
     lines += [
         "---",
-        f"*由 AI Research Tool 自动生成 | {now}*",
+        "",
+        "## 💡 今日洞察",
+        "",
+        "*(由使用者或 AI 补充)*",
+        "",
+        "---",
+        f"*自动生成 by [openclaw-system](https://github.com/kanosa0101/openclaw-system)*",
     ]
 
-    report = "\n".join(lines)
-    if output_path:
-        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        Path(output_path).write_text(report)
-        print(f"✅ 报告已保存: {output_path}")
-    return report
+    return "\n".join(lines)
 
+
+# ─────────────────────────────────────────────
+# CLI
+# ─────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(description="Multi-Source AI Research Tool")
-    parser.add_argument("--keywords", default="LLM agent agentic self-reflection", help="arXiv 搜索关键词")
-    parser.add_argument("--since", default="daily", choices=["daily", "weekly", "monthly"], help="GitHub Trending 时间范围")
-    parser.add_argument("--output", default=None, help="输出报告路径")
+    parser.add_argument("--keywords", default="LLM agent agentic self-reflection",
+                        help="arXiv 搜索关键词（默认：LLM agent agentic）")
+    parser.add_argument("--since", default="daily",
+                        choices=["daily", "weekly", "monthly"],
+                        help="GitHub Trending 时间范围（默认：daily）")
+    parser.add_argument("--language", default="",
+                        help="GitHub Trending 语言过滤（如 python）")
+    parser.add_argument("--top", type=int, default=5,
+                        help="每个来源显示的条目数（默认：5）")
+    parser.add_argument("--output", default=None,
+                        help="输出 Markdown 文件路径（默认：打印到终端）")
     args = parser.parse_args()
 
-    print("抓取 GitHub Trending...")
-    repos = parse_github_trending(args.since)
-    print(f"  找到 {len(repos)} 个项目")
+    print("📡 抓取 GitHub Trending...", flush=True)
+    repos = github_trending(args.since, args.language)
+    print(f"   找到 {len(repos)} 个项目")
 
-    print("抓取 arXiv 论文...")
-    papers = parse_arxiv(args.keywords)
-    print(f"  找到 {len(papers)} 篇论文")
+    print("📡 抓取 arXiv 论文...", flush=True)
+    papers = arxiv_papers(args.keywords, max_results=args.top * 2)
+    print(f"   找到 {len(papers)} 篇论文")
 
-    report = generate_report(repos, papers, args.keywords, args.output)
-    if not args.output:
-        print(report)
+    report = generate(repos, papers, args.keywords, args.since, args.top)
+
+    if args.output:
+        out = Path(args.output)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(report, encoding="utf-8")
+        print(f"✅ 报告已保存：{args.output}")
+    else:
+        print("\n" + report)
 
 
 if __name__ == "__main__":

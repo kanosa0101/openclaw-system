@@ -1,56 +1,83 @@
-# OpenClaw Agent Toolkit
+# openclaw-system
 
-A collection of automation tools for [OpenClaw](https://github.com/openclaw/openclaw) multi-agent systems.
+> OpenClaw 多代理体系自动化工具集
 
-## Tools
+A set of automation tools for [OpenClaw](https://github.com/openclaw/openclaw) multi-agent systems — log monitoring, agent heartbeat, unified dashboard, AI research briefing, and GitHub autosync.
 
-### 📊 Log Monitor (`tools/log_monitor/`)
-Analyzes OpenClaw audit logs and generates structured reports.
+---
+
+## 🛠️ Tools
+
+### 📊 Log Monitor
+Parses OpenClaw audit logs and outputs a structured event report.
 ```bash
 python3 tools/log_monitor/log_monitor.py
 ```
 
-### 💓 Heartbeat Monitor (`tools/heartbeat/`)
-Tracks agent liveness across sessions. Alerts via Telegram if any agent is unresponsive for >2 hours.
+### 💓 Heartbeat Monitor
+Tracks agent liveness. Alerts via Telegram if any agent is silent for >2 hours.
 ```bash
 python3 tools/heartbeat/heartbeat_monitor.py
+# Status saved to: /root/.openclaw/workspace/agent_health_status.json
 ```
 
-### 🗂️ Unified Dashboard (`tools/dashboard/`)
-Generates a unified Markdown status board aggregating all agents, cron jobs, reports, and health checks.
+### 🗂️ Unified Dashboard
+Aggregates all agents, cron jobs, reports, and health checks into a single Markdown board.
 ```bash
 python3 tools/dashboard/unified_dashboard.py
+# Output: /root/.openclaw/workspace/unified_status_dashboard.md
 ```
 
-### 🔄 GitHub AutoSync (`tools/github_sync/`)
-Automatically syncs agent configs, reports, and memories to a private GitHub repo — with token redaction.
+### 🔍 AI Research Briefing
+Fetches GitHub Trending + arXiv papers and generates a daily Markdown briefing.
 ```bash
-# Setup
+python3 tools/ai_research/ai_research.py
+python3 tools/ai_research/ai_research.py --keywords "MCP agent tool-use" --since weekly --top 10 --output report.md
+```
+Options:
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--keywords` | `LLM agent agentic self-reflection` | arXiv search query |
+| `--since` | `daily` | GitHub Trending window: `daily / weekly / monthly` |
+| `--language` | *(any)* | Filter GitHub Trending by language (e.g. `python`) |
+| `--top` | `5` | Number of results per source |
+| `--output` | *(stdout)* | Save report to file |
+
+### 🔄 GitHub AutoSync
+Syncs agent configs, reports, and memories to a GitHub repo — with token redaction.
+```bash
+# First-time setup
 bash tools/github_sync/setup_repo.sh <username> <repo> <pat>
 
 # Sync
 bash tools/github_sync/autosync.sh
 ```
 
-### 🔍 PR Reviewer (`tools/github_sync/`)
-Monitors GitHub PRs and posts AI-generated code reviews using OpenClaw's built-in model.
+### 🤖 PR Reviewer
+Monitors open PRs and posts AI-generated code reviews.
 ```bash
-GITHUB_TOKEN=... GITHUB_OWNER=... GITHUB_REPO=... python3 tools/github_sync/pr_reviewer.py
+export GITHUB_TOKEN=... GITHUB_OWNER=... GITHUB_REPO=...
+python3 tools/github_sync/pr_reviewer.py
 ```
 
-## AI Research (`tools/ai_research/`)
-Multi-source AI research tool — fetches GitHub Trending + arXiv papers and generates daily briefings.
+---
 
-## Requirements
+## ⚙️ Requirements
+
 - Python 3.8+
-- OpenClaw (https://github.com/openclaw/openclaw)
+- [OpenClaw](https://github.com/openclaw/openclaw)
 - `rsync` (for autosync)
+- No third-party Python packages required
 
-## Setup
+## 🔐 Credentials
+
 ```bash
 cp tools/github_sync/.env.example tools/github_sync/.env
-# Edit .env with your tokens
+# Edit .env — never commit this file
 ```
 
-## License
+---
+
+## 📄 License
+
 MIT
