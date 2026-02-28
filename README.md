@@ -1,11 +1,56 @@
-# OpenClaw System Sync
+# OpenClaw Agent Toolkit
 
-自动同步 OpenClaw 多代理体系的配置、报告和记忆文件。
+A collection of automation tools for [OpenClaw](https://github.com/openclaw/openclaw) multi-agent systems.
 
-## 结构
-- `config/` — 系统配置（已脱敏）
-- `agents/coding-agent/` — coding-agent 报告和记忆
-- `agents/research-agent/` — research-agent 调研报告
-- `agents/learning-agent/` — learning-agent 配置
+## Tools
 
-*由 coding-agent 自动维护*
+### 📊 Log Monitor (`tools/log_monitor/`)
+Analyzes OpenClaw audit logs and generates structured reports.
+```bash
+python3 tools/log_monitor/log_monitor.py
+```
+
+### 💓 Heartbeat Monitor (`tools/heartbeat/`)
+Tracks agent liveness across sessions. Alerts via Telegram if any agent is unresponsive for >2 hours.
+```bash
+python3 tools/heartbeat/heartbeat_monitor.py
+```
+
+### 🗂️ Unified Dashboard (`tools/dashboard/`)
+Generates a unified Markdown status board aggregating all agents, cron jobs, reports, and health checks.
+```bash
+python3 tools/dashboard/unified_dashboard.py
+```
+
+### 🔄 GitHub AutoSync (`tools/github_sync/`)
+Automatically syncs agent configs, reports, and memories to a private GitHub repo — with token redaction.
+```bash
+# Setup
+bash tools/github_sync/setup_repo.sh <username> <repo> <pat>
+
+# Sync
+bash tools/github_sync/autosync.sh
+```
+
+### 🔍 PR Reviewer (`tools/github_sync/`)
+Monitors GitHub PRs and posts AI-generated code reviews using OpenClaw's built-in model.
+```bash
+GITHUB_TOKEN=... GITHUB_OWNER=... GITHUB_REPO=... python3 tools/github_sync/pr_reviewer.py
+```
+
+## AI Research (`tools/ai_research/`)
+Multi-source AI research tool — fetches GitHub Trending + arXiv papers and generates daily briefings.
+
+## Requirements
+- Python 3.8+
+- OpenClaw (https://github.com/openclaw/openclaw)
+- `rsync` (for autosync)
+
+## Setup
+```bash
+cp tools/github_sync/.env.example tools/github_sync/.env
+# Edit .env with your tokens
+```
+
+## License
+MIT
