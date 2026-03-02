@@ -1,12 +1,12 @@
 {
   "meta": {
     "lastTouchedVersion": "2026.2.26",
-    "lastTouchedAt": "2026-02-28T13:09:43.101Z"
+    "lastTouchedAt": "2026-03-01T14:25:50.522Z"
   },
   "wizard": {
-    "lastRunAt": "2026-02-27T15:52:44.805Z",
+    "lastRunAt": "2026-03-01T14:25:50.499Z",
     "lastRunVersion": "2026.2.26",
-    "lastRunCommand": "doctor",
+    "lastRunCommand": "onboard",
     "lastRunMode": "local"
   },
   "auth": {
@@ -17,10 +17,70 @@
       }
     }
   },
+  "models": {
+    "providers": {
+      "alibaba": {
+        "baseUrl": "https://coding.dashscope.aliyuncs.com/v1",
+        "apiKey": "***REDACTED***",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "qwen3.5-plus",
+            "name": "Qwen3.5 Plus",
+            "contextWindow": 200000,
+            "maxTokens": "***REDACTED***"
+          },
+          {
+            "id": "kimi-k2.5",
+            "name": "Kimi K2.5",
+            "contextWindow": 200000,
+            "maxTokens": "***REDACTED***"
+          },
+          {
+            "id": "glm-5",
+            "name": "GLM-5",
+            "contextWindow": 200000,
+            "maxTokens": "***REDACTED***"
+          },
+          {
+            "id": "MiniMax-M2.5",
+            "name": "MiniMax M2.5",
+            "contextWindow": 200000,
+            "maxTokens": "***REDACTED***"
+          },
+          {
+            "id": "qwen3-max-2026-01-23",
+            "name": "Qwen3 Max (2026-01-23)",
+            "reasoning": true,
+            "contextWindow": 200000,
+            "maxTokens": "***REDACTED***"
+          },
+          {
+            "id": "qwen3-coder-next",
+            "name": "Qwen3 Coder Next",
+            "contextWindow": 200000,
+            "maxTokens": "***REDACTED***"
+          },
+          {
+            "id": "qwen3-coder-plus",
+            "name": "Qwen3 Coder Plus",
+            "contextWindow": 200000,
+            "maxTokens": "***REDACTED***"
+          },
+          {
+            "id": "glm-4.7",
+            "name": "GLM-4.7",
+            "contextWindow": 200000,
+            "maxTokens": "***REDACTED***"
+          }
+        ]
+      }
+    }
+  },
   "agents": {
     "defaults": {
       "model": {
-        "primary": "github-copilot/gpt-5-mini"
+        "primary": "github-copilot/claude-sonnet-4.6"
       },
       "models": {
         "github-copilot/gpt-5-mini": {},
@@ -43,22 +103,26 @@
         "github-copilot/gpt-5.1-codex-mini": {},
         "github-copilot/gpt-5.2": {},
         "github-copilot/gpt-5.2-codex": {},
-        "github-copilot/grok-code-fast-1": {}
+        "github-copilot/grok-code-fast-1": {},
+        "alibaba/qwen3.5-plus": {},
+        "alibaba/kimi-k2.5": {},
+        "alibaba/glm-5": {},
+        "alibaba/MiniMax-M2.5": {},
+        "alibaba/qwen3-max-2026-01-23": {},
+        "alibaba/qwen3-coder-next": {},
+        "alibaba/qwen3-coder-plus": {},
+        "alibaba/glm-4.7": {}
       },
       "workspace": "/root/.openclaw/workspace",
       "compaction": {
         "mode": "safeguard"
-      },
-      "maxConcurrent": 4,
-      "subagents": {
-        "maxConcurrent": 8
       }
     },
     "list": [
       {
         "id": "main",
         "model": {
-          "primary": "github-copilot/gemini-3-flash-preview"
+          "primary": "alibaba/kimi-k2.5"
         },
         "subagents": {
           "allowAgents": [
@@ -71,37 +135,27 @@
       {
         "id": "coding-agent",
         "name": "coding-agent",
-        "workspace": "/root/.openclaw/workspace-coding-agent",
-        "agentDir": "/root/.openclaw/agents/coding-agent/agent",
         "model": {
-          "primary": "github-copilot/claude-sonnet-4.6"
-        }
+          "primary": "alibaba/qwen3-coder-plus"
+        },
+        "workspace": "/root/.openclaw/workspace-coding-agent",
+        "agentDir": "/root/.openclaw/agents/coding-agent/agent"
       },
       {
         "id": "learning-agent",
         "name": "learning-agent",
-        "workspace": "/root/.openclaw/workspace-learning-agent",
         "model": {
-          "primary": "github-copilot/claude-sonnet-4.6"
+          "primary": "alibaba/qwen3.5-plus"
         }
       },
       {
         "id": "research-agent",
         "name": "research-agent",
-        "workspace": "/root/.openclaw/workspace-research-agent",
         "model": {
-          "primary": "github-copilot/claude-sonnet-4.6"
+          "primary": "alibaba/qwen3-max-2026-01-23"
         }
       }
     ]
-  },
-  "tools": {
-    "sessions": {
-      "visibility": "all"
-    },
-    "agentToAgent": {
-      "enabled": true
-    }
   },
   "bindings": [
     {
@@ -124,11 +178,15 @@
         "channel": "telegram",
         "accountId": "research-agent"
       }
+    },
+    {
+      "agentId": "main",
+      "match": {
+        "channel": "telegram",
+        "accountId": "kanosa-agent"
+      }
     }
   ],
-  "messages": {
-    "ackReactionScope": "group-mentions"
-  },
   "commands": {
     "native": "auto",
     "nativeSkills": "auto",
@@ -146,7 +204,7 @@
       "streaming": "off",
       "accounts": {
         "coding-agent": {
-          "dmPolicy": "allowlist",
+          "dmPolicy": "pairing",
           "botToken": "***REDACTED***",
           "allowFrom": [
             "7655210263"
@@ -155,7 +213,7 @@
           "streaming": "off"
         },
         "kanosa-agent": {
-          "dmPolicy": "allowlist",
+          "dmPolicy": "pairing",
           "botToken": "***REDACTED***",
           "allowFrom": [
             "7655210263"
@@ -164,7 +222,7 @@
           "streaming": "off"
         },
         "learning-agent": {
-          "dmPolicy": "allowlist",
+          "dmPolicy": "pairing",
           "botToken": "***REDACTED***",
           "allowFrom": [
             "7655210263"
@@ -173,7 +231,7 @@
           "streaming": "off"
         },
         "research-agent": {
-          "dmPolicy": "allowlist",
+          "dmPolicy": "pairing",
           "botToken": "***REDACTED***",
           "allowFrom": [
             "7655210263"
@@ -195,26 +253,6 @@
     "tailscale": {
       "mode": "off",
       "resetOnExit": false
-    },
-    "remote": {
-      "url": "ws://127.0.0.1:18789"
-    },
-    "nodes": {
-      "denyCommands": [
-        "camera.snap",
-        "camera.clip",
-        "screen.record",
-        "calendar.add",
-        "contacts.add",
-        "reminders.add"
-      ]
-    }
-  },
-  "plugins": {
-    "entries": {
-      "telegram": {
-        "enabled": true
-      }
     }
   }
 }
