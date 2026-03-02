@@ -1,12 +1,12 @@
 {
   "meta": {
     "lastTouchedVersion": "2026.2.26",
-    "lastTouchedAt": "2026-03-01T14:25:50.522Z"
+    "lastTouchedAt": "2026-03-02T07:31:26.940Z"
   },
   "wizard": {
-    "lastRunAt": "2026-03-01T14:25:50.499Z",
+    "lastRunAt": "2026-03-02T07:31:26.928Z",
     "lastRunVersion": "2026.2.26",
-    "lastRunCommand": "onboard",
+    "lastRunCommand": "doctor",
     "lastRunMode": "local"
   },
   "auth": {
@@ -135,11 +135,11 @@
       {
         "id": "coding-agent",
         "name": "coding-agent",
+        "workspace": "/root/.openclaw/workspace-coding-agent",
+        "agentDir": "/root/.openclaw/agents/coding-agent/agent",
         "model": {
           "primary": "alibaba/qwen3-coder-plus"
-        },
-        "workspace": "/root/.openclaw/workspace-coding-agent",
-        "agentDir": "/root/.openclaw/agents/coding-agent/agent"
+        }
       },
       {
         "id": "learning-agent",
@@ -156,6 +156,11 @@
         }
       }
     ]
+  },
+  "tools": {
+    "agentToAgent": {
+      "enabled": true
+    }
   },
   "bindings": [
     {
@@ -201,7 +206,6 @@
       "enabled": true,
       "dmPolicy": "pairing",
       "groupPolicy": "allowlist",
-      "streaming": "off",
       "accounts": {
         "coding-agent": {
           "dmPolicy": "pairing",
@@ -238,8 +242,14 @@
           ],
           "groupPolicy": "allowlist",
           "streaming": "off"
+        },
+        "default": {
+          "dmPolicy": "pairing",
+          "groupPolicy": "allowlist",
+          "streaming": "off"
         }
-      }
+      },
+      "streaming": "off"
     }
   },
   "gateway": {
