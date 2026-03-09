@@ -266,6 +266,9 @@
     "tailscale": {
       "mode": "off",
       "resetOnExit": false
+    },
+    "remote": {
+      "token": "***REDACTED***"
     }
   }
 }
